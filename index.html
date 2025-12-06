@@ -53,25 +53,26 @@
 
         .camera-section {
             position: relative;
-            background: #000;
+            background: #1a1a1a;
             border-radius: 15px;
             overflow: hidden;
             margin-bottom: 30px;
-            aspect-ratio: 4/3;
-            max-height: 500px;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        #video, #canvas {
+        #video {
             width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
+            height: auto;
+            display: none;
+            transform: scaleX(-1);
         }
 
         #canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
+            width: 100%;
+            height: auto;
             display: none;
         }
 
@@ -82,6 +83,12 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
+        }
+
+        .placeholder {
+            color: white;
+            text-align: center;
+            font-size: 1.2rem;
         }
 
         .controls {
@@ -100,9 +107,14 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 10px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .btn-primary {
@@ -110,7 +122,7 @@
             color: white;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
         }
@@ -120,7 +132,7 @@
             color: #333;
         }
 
-        .btn-secondary:hover {
+        .btn-secondary:hover:not(:disabled) {
             background: #e0e0e0;
         }
 
@@ -132,10 +144,8 @@
         }
 
         .hairstyle-option {
-            position: relative;
             border: 3px solid transparent;
             border-radius: 15px;
-            overflow: hidden;
             cursor: pointer;
             transition: all 0.3s ease;
             aspect-ratio: 1;
@@ -179,6 +189,16 @@
             color: #667eea;
         }
 
+        .status.error {
+            background: #ffe0e0;
+            color: #c0392b;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
         .slider-control {
             margin-bottom: 20px;
         }
@@ -196,61 +216,36 @@
             border-radius: 5px;
             background: #ddd;
             outline: none;
-            -webkit-appearance: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            appearance: none;
             width: 20px;
             height: 20px;
             border-radius: 50%;
             background: #667eea;
             cursor: pointer;
-        }
-
-        input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #667eea;
-            cursor: pointer;
-            border: none;
         }
 
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.5rem;
             }
-
             .main-content {
                 padding: 20px;
             }
-
             .hairstyles-grid {
                 grid-template-columns: repeat(3, 1fr);
             }
         }
 
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .debug-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+            font-family: monospace;
         }
     </style>
 </head>
@@ -258,14 +253,20 @@
     <div class="container">
         <div class="header">
             <h1>✨ Virtual Hairstyle Try-On</h1>
-            <p>Try different hairstyles with AR technology</p>
+            <p>Try different hairstyles with your camera</p>
         </div>
 
         <div class="main-content">
-            <div class="status" id="status">Click "Start Camera" to begin</div>
+            <div class="status" id="status">Ready! Click "Start Camera" to begin</div>
+            
+            <div class="debug-info" id="debug">Checking browser compatibility...</div>
 
-            <div class="camera-section">
-                <video id="video" autoplay playsinline></video>
+            <div class="camera-section" id="cameraSection">
+                <div class="placeholder" id="placeholder">
+                    <div>📷</div>
+                    <div>Camera Preview Will Appear Here</div>
+                </div>
+                <video id="video" autoplay playsinline muted></video>
                 <canvas id="canvas"></canvas>
                 <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
             </div>
@@ -286,24 +287,17 @@
             </div>
 
             <div class="slider-control">
-                <label for="opacitySlider">Hairstyle Opacity: <span id="opacityValue">80%</span></label>
-                <input type="range" id="opacitySlider" min="0" max="100" value="80">
+                <label for="opacitySlider">Hairstyle Opacity: <span id="opacityValue">70%</span></label>
+                <input type="range" id="opacitySlider" min="0" max="100" value="70">
             </div>
 
             <h3 style="margin-bottom: 15px; color: #333;">Choose a Hairstyle:</h3>
             <div class="hairstyles-grid" id="hairstylesGrid"></div>
-
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Loading face detection...</p>
-            </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
-
     <script>
+        // Get all elements
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const overlayCanvas = document.getElementById('overlayCanvas');
@@ -314,41 +308,65 @@
         const switchBtn = document.getElementById('switchBtn');
         const downloadBtn = document.getElementById('downloadBtn');
         const status = document.getElementById('status');
+        const placeholder = document.getElementById('placeholder');
+        const debugInfo = document.getElementById('debug');
         const opacitySlider = document.getElementById('opacitySlider');
         const opacityValue = document.getElementById('opacityValue');
-        const loading = document.getElementById('loading');
+        const cameraSection = document.getElementById('cameraSection');
 
         let stream = null;
         let facingMode = 'user';
-        let detector = null;
         let selectedHairstyle = null;
-        let opacity = 0.8;
+        let opacity = 0.7;
         let animationId = null;
 
+        // Hairstyle data
         const hairstyles = [
-            { id: 1, name: 'Classic', icon: '👨', color: '#2c3e50' },
-            { id: 2, name: 'Pompadour', icon: '💇‍♂️', color: '#34495e' },
-            { id: 3, name: 'Undercut', icon: '✂️', color: '#7f8c8d' },
-            { id: 4, name: 'Quiff', icon: '🎩', color: '#95a5a6' },
-            { id: 5, name: 'Slick Back', icon: '👔', color: '#1a1a1a' },
-            { id: 6, name: 'Fade', icon: '⚡', color: '#2c3e50' },
-            { id: 7, name: 'Mohawk', icon: '🤘', color: '#c0392b' },
-            { id: 8, name: 'Long Hair', icon: '🦁', color: '#8b4513' },
-            { id: 9, name: 'Curly', icon: '🌀', color: '#654321' }
+            { id: 1, name: 'Classic', icon: '👨', color: '#2c3e50', offsetY: -0.15 },
+            { id: 2, name: 'Pompadour', icon: '💇‍♂️', color: '#34495e', offsetY: -0.25 },
+            { id: 3, name: 'Undercut', icon: '✂️', color: '#7f8c8d', offsetY: -0.1 },
+            { id: 4, name: 'Quiff', icon: '🎩', color: '#95a5a6', offsetY: -0.2 },
+            { id: 5, name: 'Slick Back', icon: '👔', color: '#1a1a1a', offsetY: -0.12 },
+            { id: 6, name: 'Fade', icon: '⚡', color: '#2c3e50', offsetY: -0.15 },
+            { id: 7, name: 'Mohawk', icon: '🤘', color: '#c0392b', offsetY: -0.3 },
+            { id: 8, name: 'Long Hair', icon: '🦁', color: '#8b4513', offsetY: -0.1 },
+            { id: 9, name: 'Curly', icon: '🌀', color: '#654321', offsetY: -0.15 }
         ];
 
+        // Check browser compatibility
+        function checkCompatibility() {
+            const checks = [];
+            
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                checks.push('✅ Camera API supported');
+            } else {
+                checks.push('❌ Camera API not supported');
+                startBtn.disabled = true;
+            }
+            
+            if (window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
+                checks.push('✅ Secure context');
+            } else {
+                checks.push('⚠️ HTTPS required for camera');
+            }
+            
+            debugInfo.textContent = checks.join(' | ');
+        }
+
         // Initialize hairstyles grid
-        const hairstylesGrid = document.getElementById('hairstylesGrid');
-        hairstyles.forEach(style => {
-            const div = document.createElement('div');
-            div.className = 'hairstyle-option';
-            div.innerHTML = `
-                <div class="hairstyle-icon">${style.icon}</div>
-                <div class="hairstyle-name">${style.name}</div>
-            `;
-            div.addEventListener('click', () => selectHairstyle(style, div));
-            hairstylesGrid.appendChild(div);
-        });
+        function initHairstyles() {
+            const grid = document.getElementById('hairstylesGrid');
+            hairstyles.forEach(style => {
+                const div = document.createElement('div');
+                div.className = 'hairstyle-option';
+                div.innerHTML = `
+                    <div class="hairstyle-icon">${style.icon}</div>
+                    <div class="hairstyle-name">${style.name}</div>
+                `;
+                div.onclick = () => selectHairstyle(style, div);
+                grid.appendChild(div);
+            });
+        }
 
         function selectHairstyle(style, element) {
             document.querySelectorAll('.hairstyle-option').forEach(el => {
@@ -356,282 +374,297 @@
             });
             element.classList.add('active');
             selectedHairstyle = style;
-            status.textContent = `Selected: ${style.name}`;
+            updateStatus(`✨ Selected: ${style.name}`, 'success');
         }
 
-        opacitySlider.addEventListener('input', (e) => {
-            opacity = e.target.value / 100;
-            opacityValue.textContent = e.target.value + '%';
-        });
-
-        async function initFaceDetection() {
-            loading.style.display = 'block';
-            try {
-                const model = await faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
-                const detectorConfig = {
-                    runtime: 'tfjs',
-                    refineLandmarks: true
-                };
-                detector = await faceLandmarksDetection.createDetector(model, detectorConfig);
-                loading.style.display = 'none';
-                status.textContent = 'Face detection ready!';
-            } catch (error) {
-                console.error('Error loading face detection:', error);
-                loading.style.display = 'none';
-                status.textContent = 'Face detection unavailable - manual mode';
-            }
+        function updateStatus(message, type = '') {
+            status.textContent = message;
+            status.className = 'status ' + type;
         }
 
+        // Opacity slider
+        opacitySlider.oninput = function() {
+            opacity = this.value / 100;
+            opacityValue.textContent = this.value + '%';
+        };
+
+        // Start camera function
         async function startCamera() {
+            console.log('Start camera clicked');
+            updateStatus('🔄 Starting camera...', '');
+            startBtn.disabled = true;
+
             try {
+                // Stop any existing stream
                 if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
+                    stream.getTracks().forEach(track => {
+                        console.log('Stopping track:', track.kind);
+                        track.stop();
+                    });
                 }
 
+                console.log('Requesting camera with facing mode:', facingMode);
+
+                // Request camera access
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
+                    video: {
                         facingMode: facingMode,
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     }
                 });
 
-                video.srcObject = stream;
-                video.style.display = 'block';
-                canvas.style.display = 'none';
+                console.log('Camera stream obtained:', stream);
 
-                video.addEventListener('loadedmetadata', () => {
-                    overlayCanvas.width = video.videoWidth;
-                    overlayCanvas.height = video.videoHeight;
+                // Set video source
+                video.srcObject = stream;
+
+                // Wait for video to load
+                video.onloadedmetadata = function() {
+                    console.log('Video metadata loaded');
+                    console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+                    
+                    // Set canvas sizes
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                });
+                    overlayCanvas.width = video.videoWidth;
+                    overlayCanvas.height = video.videoHeight;
 
-                startBtn.style.display = 'none';
-                captureBtn.style.display = 'inline-flex';
-                switchBtn.style.display = 'inline-flex';
-                status.textContent = 'Camera active - Select a hairstyle and pose!';
+                    // Show video, hide placeholder
+                    video.style.display = 'block';
+                    placeholder.style.display = 'none';
 
-                if (detector) {
-                    detectFaces();
-                }
+                    // Update UI
+                    startBtn.style.display = 'none';
+                    captureBtn.style.display = 'inline-flex';
+                    switchBtn.style.display = 'inline-flex';
+                    
+                    updateStatus('✅ Camera active! Select a hairstyle to try it on.', 'success');
+                    
+                    // Start drawing loop
+                    drawLoop();
+                };
+
+                // Play video
+                await video.play();
+                console.log('Video playing');
 
             } catch (error) {
-                console.error('Error accessing camera:', error);
-                status.textContent = 'Camera access denied or unavailable';
+                console.error('Camera error:', error);
+                startBtn.disabled = false;
+                
+                let errorMsg = '❌ Camera error: ';
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    errorMsg += 'Permission denied. Please allow camera access and refresh.';
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    errorMsg += 'No camera found on this device.';
+                } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+                    errorMsg += 'Camera is already in use by another application.';
+                } else {
+                    errorMsg += error.message;
+                }
+                
+                updateStatus(errorMsg, 'error');
+                debugInfo.textContent = 'Error details: ' + error.name + ' - ' + error.message;
             }
         }
 
-        async function detectFaces() {
-            if (!detector || !video.videoWidth) {
-                animationId = requestAnimationFrame(detectFaces);
+        // Draw loop for hairstyle overlay
+        function drawLoop() {
+            if (!video.videoWidth || video.paused) {
+                animationId = requestAnimationFrame(drawLoop);
                 return;
             }
 
-            const faces = await detector.estimateFaces(video);
-            
+            // Clear overlay
             overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-            if (faces.length > 0 && selectedHairstyle) {
-                const face = faces,[object Object],;
-                drawHairstyle(face);
+            // If hairstyle selected, draw it
+            if (selectedHairstyle) {
+                drawHairstyleOverlay();
             }
 
-            animationId = requestAnimationFrame(detectFaces);
+            animationId = requestAnimationFrame(drawLoop);
         }
 
-        function drawHairstyle(face) {
-            const keypoints = face.keypoints;
+        // Draw hairstyle overlay (simple version - positioned at top center)
+        function drawHairstyleOverlay() {
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
             
-            // Get forehead and head boundaries
-            const leftTemple = keypoints,[object Object],;
-            const rightTemple = keypoints,[object Object],;
-            const noseTip = keypoints,[object Object],;
-            const topHead = keypoints,[object Object],;
-
-            const headWidth = Math.abs(rightTemple.x - leftTemple.x) * 1.4;
-            const headHeight = Math.abs(topHead.y - noseTip.y) * 1.5;
-
-            const centerX = (leftTemple.x + rightTemple.x) / 2;
-            const topY = topHead.y - headHeight * 0.3;
+            // Calculate position (top center of video)
+            const centerX = videoWidth / 2;
+            const topY = videoHeight * 0.15; // 15% from top
+            const hairWidth = videoWidth * 0.4;
+            const hairHeight = videoHeight * 0.3;
 
             overlayCtx.save();
             overlayCtx.globalAlpha = opacity;
+            overlayCtx.fillStyle = selectedHairstyle.color;
 
-            // Draw hairstyle based on type
+            // Draw based on hairstyle type
             switch(selectedHairstyle.id) {
                 case 1: // Classic
-                    drawClassicHair(centerX, topY, headWidth, headHeight);
+                    overlayCtx.beginPath();
+                    overlayCtx.ellipse(centerX, topY, hairWidth/2, hairHeight/2.5, 0, 0, Math.PI * 2);
+                    overlayCtx.fill();
                     break;
+
                 case 2: // Pompadour
-                    drawPompadour(centerX, topY, headWidth, headHeight);
+                    overlayCtx.beginPath();
+                    overlayCtx.ellipse(centerX, topY - hairHeight/4, hairWidth/2, hairHeight/2, 0, 0, Math.PI * 2);
+                    overlayCtx.fill();
                     break;
+
                 case 3: // Undercut
-                    drawUndercut(centerX, topY, headWidth, headHeight);
+                    overlayCtx.beginPath();
+                    overlayCtx.ellipse(centerX, topY, hairWidth/2.5, hairHeight/3, 0, 0, Math.PI * 2);
+                    overlayCtx.fill();
                     break;
+
                 case 4: // Quiff
-                    drawQuiff(centerX, topY, headWidth, headHeight);
+                    overlayCtx.beginPath();
+                    overlayCtx.moveTo(centerX - hairWidth/2, topY + hairHeight/3);
+                    overlayCtx.quadraticCurveTo(centerX - hairWidth/3, topY - hairHeight/2, centerX, topY - hairHeight/3);
+                    overlayCtx.quadraticCurveTo(centerX + hairWidth/3, topY - hairHeight/2, centerX + hairWidth/2, topY + hairHeight/3);
+                    overlayCtx.fill();
                     break;
+
                 case 5: // Slick Back
-                    drawSlickBack(centerX, topY, headWidth, headHeight);
+                    overlayCtx.beginPath();
+                    overlayCtx.ellipse(centerX, topY + hairHeight/6, hairWidth/2, hairHeight/2.5, 0, 0, Math.PI * 2);
+                    overlayCtx.fill();
                     break;
+
                 case 6: // Fade
-                    drawFade(centerX, topY, headWidth, headHeight);
+                    const gradient = overlayCtx.createLinearGradient(centerX, topY - hairHeight/2, centerX, topY + hairHeight/2);
+                    gradient.addColorStop(0, selectedHairstyle.color);
+                    gradient.addColorStop(1, 'rgba(44, 62, 80, 0.2)');
+                    overlayCtx.fillStyle = gradient;
+                    overlayCtx.beginPath();
+                    overlayCtx.ellipse(centerX, topY, hairWidth/2, hairHeight/2.5, 0, 0, Math.PI * 2);
+                    overlayCtx.fill();
                     break;
+
                 case 7: // Mohawk
-                    drawMohawk(centerX, topY, headWidth, headHeight);
+                    overlayCtx.beginPath();
+                    overlayCtx.moveTo(centerX, topY - hairHeight/1.5);
+                    overlayCtx.lineTo(centerX - hairWidth/6, topY + hairHeight/3);
+                    overlayCtx.lineTo(centerX + hairWidth/6, topY + hairHeight/3);
+                    overlayCtx.closePath();
+                    overlayCtx.fill();
                     break;
+
                 case 8: // Long Hair
-                    drawLongHair(centerX, topY, headWidth, headHeight);
+                    overlayCtx.beginPath();
+                    overlayCtx.ellipse(centerX, topY, hairWidth/2, hairHeight/2, 0, 0, Math.PI * 2);
+                    overlayCtx.fill();
+                    overlayCtx.beginPath();
+                    overlayCtx.ellipse(centerX - hairWidth/3, topY + hairHeight*1.2, hairWidth/4, hairHeight/1.5, 0, 0, Math.PI * 2);
+                    overlayCtx.fill();
+                    overlayCtx.beginPath();
+                    overlayCtx.ellipse(centerX + hairWidth/3, topY + hairHeight*1.2, hairWidth/4, hairHeight/1.5, 0, 0, Math.PI * 2);
+                    overlayCtx.fill();
                     break;
+
                 case 9: // Curly
-                    drawCurlyHair(centerX, topY, headWidth, headHeight);
+                    for (let i = 0; i < 12; i++) {
+                        const angle = (Math.PI * 2 * i) / 12;
+                        const curlX = centerX + Math.cos(angle) * (hairWidth/3);
+                        const curlY = topY + Math.sin(angle) * (hairHeight/3);
+                        overlayCtx.beginPath();
+                        overlayCtx.arc(curlX, curlY, hairWidth/12, 0, Math.PI * 2);
+                        overlayCtx.fill();
+                    }
                     break;
             }
 
             overlayCtx.restore();
         }
 
-        function drawClassicHair(x, y, w, h) {
-            overlayCtx.fillStyle = selectedHairstyle.color;
-            overlayCtx.beginPath();
-            overlayCtx.ellipse(x, y, w/2, h/2.5, 0, 0, Math.PI * 2);
-            overlayCtx.fill();
-        }
-
-        function drawPompadour(x, y, w, h) {
-            overlayCtx.fillStyle = selectedHairstyle.color;
-            overlayCtx.beginPath();
-            overlayCtx.ellipse(x, y - h/4, w/2, h/2, 0, 0, Math.PI * 2);
-            overlayCtx.fill();
-            overlayCtx.beginPath();
-            overlayCtx.ellipse(x, y + h/6, w/2.2, h/3, 0, 0, Math.PI, true);
-            overlayCtx.fill();
-        }
-
-        function drawUndercut(x, y, w, h) {
-            overlayCtx.fillStyle = selectedHairstyle.color;
-            overlayCtx.beginPath();
-            overlayCtx.ellipse(x, y, w/2.5, h/3, 0, 0, Math.PI * 2);
-            overlayCtx.fill();
-        }
-
-        function drawQuiff(x, y, w, h) {
-            overlayCtx.fillStyle = selectedHairstyle.color;
-            overlayCtx.beginPath();
-            overlayCtx.moveTo(x - w/2, y + h/3);
-            overlayCtx.quadraticCurveTo(x - w/3, y - h/2, x, y - h/3);
-            overlayCtx.quadraticCurveTo(x + w/3, y - h/2, x + w/2, y + h/3);
-            overlayCtx.quadraticCurveTo(x, y + h/2, x - w/2, y + h/3);
-            overlayCtx.fill();
-        }
-
-        function drawSlickBack(x, y, w, h) {
-            overlayCtx.fillStyle = selectedHairstyle.color;
-            overlayCtx.beginPath();
-            overlayCtx.ellipse(x, y + h/6, w/2, h/2.5, 0, 0, Math.PI * 2);
-            overlayCtx.fill();
-        }
-
-        function drawFade(x, y, w, h) {
-            const gradient = overlayCtx.createLinearGradient(x, y, x, y + h);
-            gradient.addColorStop(0, selectedHairstyle.color);
-            gradient.addColorStop(1, 'rgba(44, 62, 80, 0.3)');
-            overlayCtx.fillStyle = gradient;
-            overlayCtx.beginPath();
-            overlayCtx.ellipse(x, y, w/2, h/2.5, 0, 0, Math.PI * 2);
-            overlayCtx.fill();
-        }
-
-        function drawMohawk(x, y, w, h) {
-            overlayCtx.fillStyle = selectedHairstyle.color;
-            overlayCtx.beginPath();
-            overlayCtx.moveTo(x, y - h/2);
-            overlayCtx.lineTo(x - w/6, y + h/3);
-            overlayCtx.lineTo(x + w/6, y + h/3);
-            overlayCtx.closePath();
-            overlayCtx.fill();
-        }
-
-        function drawLongHair(x, y, w, h) {
-            overlayCtx.fillStyle = selectedHairstyle.color;
-            overlayCtx.beginPath();
-            overlayCtx.ellipse(x, y, w/2, h/2, 0, 0, Math.PI * 2);
-            overlayCtx.fill();
-            overlayCtx.beginPath();
-            overlayCtx.ellipse(x - w/3, y + h, w/4, h/1.5, 0, 0, Math.PI * 2);
-            overlayCtx.fill();
-            overlayCtx.beginPath();
-            overlayCtx.ellipse(x + w/3, y + h, w/4, h/1.5, 0, 0, Math.PI * 2);
-            overlayCtx.fill();
-        }
-
-        function drawCurlyHair(x, y, w, h) {
-            overlayCtx.fillStyle = selectedHairstyle.color;
-            const curlCount = 12;
-            for (let i = 0; i < curlCount; i++) {
-                const angle = (Math.PI * 2 * i) / curlCount;
-                const curlX = x + Math.cos(angle) * (w/3);
-                const curlY = y + Math.sin(angle) * (h/3);
-                overlayCtx.beginPath();
-                overlayCtx.arc(curlX, curlY, w/12, 0, Math.PI * 2);
-                overlayCtx.fill();
-            }
-        }
-
+        // Capture photo
         function capturePhoto() {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
             
-            // Draw overlay on captured image
+            // Draw video frame
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            ctx.restore();
+            
+            // Draw overlay
             ctx.drawImage(overlayCanvas, 0, 0);
 
+            // Show canvas, hide video
             canvas.style.display = 'block';
             video.style.display = 'none';
             overlayCanvas.style.display = 'none';
 
+            // Update buttons
             downloadBtn.style.display = 'inline-flex';
             captureBtn.textContent = '🔄 Retake';
             captureBtn.onclick = retake;
 
+            // Stop animation
             if (animationId) {
                 cancelAnimationFrame(animationId);
             }
+
+            updateStatus('📸 Photo captured! Download or retake.', 'success');
         }
 
+        // Retake photo
         function retake() {
             canvas.style.display = 'none';
             video.style.display = 'block';
             overlayCanvas.style.display = 'block';
+            
             downloadBtn.style.display = 'none';
             captureBtn.textContent = '📸 Capture Photo';
             captureBtn.onclick = capturePhoto;
 
-            if (detector) {
-                detectFaces();
-            }
+            // Restart animation
+            drawLoop();
+
+            updateStatus('✅ Camera active! Ready to capture.', 'success');
         }
 
+        // Download image
         function downloadImage() {
             const link = document.createElement('a');
-            link.download = 'hairstyle-tryOn.png';
-            link.href = canvas.toDataURL();
+            link.download = `hairstyle-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
             link.click();
+            updateStatus('💾 Image downloaded successfully!', 'success');
         }
 
+        // Switch camera
         async function switchCamera() {
             facingMode = facingMode === 'user' ? 'environment' : 'user';
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
             await startCamera();
         }
 
-        startBtn.addEventListener('click', async () => {
-            await initFaceDetection();
-            await startCamera();
+        // Event listeners
+        startBtn.onclick = startCamera;
+        captureBtn.onclick = capturePhoto;
+        switchBtn.onclick = switchCamera;
+        downloadBtn.onclick = downloadImage;
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            console.log('Page loaded');
+            checkCompatibility();
+            initHairstyles();
         });
-        captureBtn.addEventListener('click', capturePhoto);
-        switchBtn.addEventListener('click', switchCamera);
-        downloadBtn.addEventListener('click', downloadImage);
+
+        // Test button click
+        startBtn.addEventListener('click', () => {
+            console.log('Button clicked - event listener working');
+        });
     </script>
 </body>
 </html>
